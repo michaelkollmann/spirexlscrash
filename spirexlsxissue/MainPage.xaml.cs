@@ -15,6 +15,8 @@ namespace spirexlsxissue
         public MainPage()
         {
             InitializeComponent();
+            Spire.License.LicenseProvider.SetLicenseKey("");
+
         }
 
         void Button_Clicked(System.Object sender, System.EventArgs e)
@@ -22,6 +24,7 @@ namespace spirexlsxissue
             // this code can be used to reproduce two issues I have found
             // 1) an exception being thrown when setting the cell color
             // 2) an exception being thrown when saving a chartsheet as a PDF
+            // 3) an exception being thrown when assigning more than 65535 data points to a graph
 
             // Get template file
             var assembly = Assembly.GetExecutingAssembly();
@@ -37,10 +40,14 @@ namespace spirexlsxissue
             var infoWorksheet = workbook.Worksheets[0];
             //infoWorksheet[1, 1].Style.Color = Color.Black;      // <-- 1) this throws an exception on iOS!
 
+            // number of data rows
+            // if this number is bigger than 65535 assigning the dataRange will crash
+            var count = 100000;     // <-- 3) this causes an exception to be thrown if the unmber is set to more than 65535
+
             // generate random data for the graph
             var rawDataWorksheet = workbook.Worksheets[1];
             var rand = new Random();
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < count; i++)
             {
                 rawDataWorksheet[i + 1, 1].NumberValue = i;
                 rawDataWorksheet[i + 1, 1].NumberValue = rand.NextDouble();
@@ -50,14 +57,14 @@ namespace spirexlsxissue
             var chart = workbook.Chartsheets[0];
             chart.ChartTitle = "test";
             chart.ChartType = ExcelChartType.ScatterLine;
-            chart.DataRange = rawDataWorksheet.Range["B1:B1001"];
+            //chart.DataRange = rawDataWorksheet.Range[string.Format("B1:B{0}", count + 1)];        // <-- 3) here the exception about the 65535 data points is being thrown
             chart.SeriesDataFromRange = false;
             chart.PrimaryCategoryAxis.Title = "Time";
             chart.PrimaryValueAxis.Title = "Value";
             var series = chart.Series.Add(ExcelChartType.ScatterLine);
             series.Name = "Oxygen";
-            series.CategoryLabels = rawDataWorksheet.Range["A1:A1001"];
-            series.Values = rawDataWorksheet.Range["B1:B1001"];
+            series.CategoryLabels = rawDataWorksheet.Range[string.Format("A1:A{0}", count + 1)];
+            series.Values = rawDataWorksheet.Range[string.Format("B1:B{0}", count + 1)];
 
             // save as pdf
             var name = Path.Combine(GetBasePath(), "testfile.xlsx");
